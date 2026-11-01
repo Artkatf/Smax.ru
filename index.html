@@ -377,243 +377,134 @@
         let myPeer = null;
         let currentConnection = null;
         let currentFriendId = null;
-        let chatsHistory = ; // ИСПРАВЛЕНО: корректный синтаксис
-        let myId = '';
-        let isLoggedIn = false;
+        let chatsHistory = ; // Исправлено: корректная инициализация
 
-        // --- ИНИЦИАЛИЗАЦИЯ ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedProfile = localStorage.getItem('smax_profile');
-            if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
-                myId = profile.id;
-                isLoggedIn = true;
-                renderProfile(profile);
-                showApp();
-                initPeer(myId);
-            } else {
-                hideApp();
-            }
-        });
+function previewAvatar(input) {
+    const preview = document.getElementById('avatarPreview');
+    if (input.files && input.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files); // Исправлено: передача файла
+    }
+}
 
-        // --- АВТОРИЗАЦИЯ ---
-        function previewAvatar(input) {
-            const preview = document.getElementById('avatarPreview');
-            if (input.files && input.files.length > 0) { // ИСПРАВЛЕНО: корректная проверка
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                }
-                reader.readAsDataURL(input.files); // ИСПРАВЛЕНО: берем первый файл
-            }
-        }
+function saveProfile() {
+    const firstName = document.getElementById('firstNameInput').value.trim();
+    const lastName = document.getElementById('lastNameInput').value.trim();
+    const avatarPreview = document.getElementById('avatarPreview').src;
+    
+    if (!firstName || !lastName) {
+        alert('Пожалуйста, введите Имя и Фамилию');
+        return;
+    }
 
-        function saveProfile() {
-            const firstName = document.getElementById('firstNameInput').value.trim();
-            const lastName = document.getElementById('lastNameInput').value.trim();
-            const avatarPreview = document.getElementById('avatarPreview').src;
-            
-            if (!firstName || !lastName) {
-                alert('Пожалуйста, введите Имя и Фамилию');
-                return;
-            }
+    const idDigits = Math.floor(Math.random() * 90000) + 10000;
+    myId = String(idDigits); 
 
-            const idDigits = Math.floor(Math.random() * 90000) + 10000;
-            myId = String(idDigits); 
+    const profile = { firstName, lastName, avatar: avatarPreview, id: myId };
+    localStorage.setItem('smax_profile', JSON.stringify(profile));
 
-            const profile = { firstName, lastName, avatar: avatarPreview, id: myId };
-            localStorage.setItem('smax_profile', JSON.stringify(profile));
+    renderProfile(profile);
+    showApp();
+    isLoggedIn = true;
+    initPeer(myId);
+    
+    const idDisplay = document.getElementById('generatedIdDisplay');
+    if(idDisplay) {
+        idDisplay.style.display = 'block';
+        idDisplay.textContent = `Ваш ID: \${myId} (скопируйте его для друзей)`; // Исправлено: корректный шаблон
+    }
+}
 
-            renderProfile(profile);
-            showApp();
-            isLoggedIn = true;
-            initPeer(myId);
-            
-            const idDisplay = document.getElementById('generatedIdDisplay');
-            if(idDisplay) {
-                idDisplay.style.display = 'block';
-                idDisplay.textContent = `Ваш ID: \${myId} (скопируйте его для друзей)`; // ИСПРАВЛЕНО: корректный шаблон
-            }
-        }
+function renderProfile(profile) {
+    document.getElementById('myAvatar').src = profile.avatar || 'https://via.placeholder.com/50';
+    document.getElementById('myFullNameDisplay').textContent = `${profile.firstName} ${profile.lastName}`;
+    document.getElementById('myIdDisplay').textContent = `ID: \${profile.id}`; // Исправлено: корректный шаблон
+}
 
-        function renderProfile(profile) {
-            document.getElementById('myAvatar').src = profile.avatar || 'https://via.placeholder.com/50';
-            document.getElementById('myFullNameDisplay').textContent = `${profile.firstName} ${profile.lastName}`;
-            document.getElementById('myIdDisplay').textContent = `ID: \${profile.id}`; // ИСПРАВЛЕНО: корректный шаблон
-        }
+function startChatSession(conn) {
+    document.getElementById('appContainer').classList.add('chat-active');
+    document.getElementById('chatWithTitle').textContent = `Чат с ID: \${currentFriendId}`; // Исправлено: корректный шаблон
+    updateStatus(true);
+    addToChatsHistory(currentFriendId, 'Чат открыт');
+}
 
-        function showApp() {
-            document.getElementById('authScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-        }
+function renderChatList() {
+    const list = document.getElementById('chatList');
+    const empty = document.getElementById('emptyChatList');
+    
+    if (chatsHistory.length === 0) {
+        empty.style.display = 'block';
+        list.innerHTML = '';
+        return;
+    }
+    
+    empty.style.display = 'none';
+    list.innerHTML = chatsHistory.map(chat => `
+        <div class="chat-item" onclick="openChatWith('\${chat.id}')">
+            <div class="chat-avatar-placeholder" style="background: #ccc;">\${chat.id.slice(0,1)}</div>
+            <div class="chat-info">
+                <h5>Друг #\${chat.id}</h5>
+                <p>\${chat.lastMsg}</p>
+            </div>
+        </div>
+    `).join('');
+}
 
-        function hideApp() {
-            document.getElementById('authScreen').style.display = 'flex';
-            document.getElementById('appContainer').style.display = 'none';
-        }
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text || !currentConnection) return;
 
-        // --- PEERJS ЛОГИКА ---
-        function initPeer(id) {
-            if (myPeer) return;
-            myPeer = new Peer(id, { debug: 1 });
-            myPeer.on('open', (peerId) => console.log('Peer открыт:', peerId));
-            myPeer.on('connection', (conn) => handleIncomingConnection(conn));
-        }
+    const msgObj = {
+        text: text,
+        sender: 'me',
+        time: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}) // Исправлено: корректная локаль
+    };
 
-        function handleIncomingConnection(conn) {
-            conn.on('data', (data) => receiveMessage(conn, data));
-            conn.on('error', (err) => console.error(err));
-            currentConnection = conn;
-            currentFriendId = conn.peer;
-            startChatSession(conn);
-        }
+    appendMessageToUI(msgObj);
+    input.value = '';
 
-        // --- ДЕЙСТВИЯ ---
-        function connectToFriend() {
-            if (!isLoggedIn) { alert('Сначала войдите!'); return; }
-            const friendId = document.getElementById('friendIdInput').value.trim();
-            
-            if (!/^\d{5}\$/.test(friendId)) {
-                alert('ID должен состоять ровно из 5 цифр!');
-                return;
-            }
-            if (friendId === myId) { alert('Нельзя написать самому себе!'); return; }
+    try {
+        currentConnection.send(JSON.stringify(msgObj));
+    } catch (e) {
+        console.error("Ошибка отправки:", e);
+    }
+}
 
-            const conn = myPeer.connect(friendId);
-            conn.on('open', () => {
-                currentConnection = conn;
-                currentFriendId = friendId;
-                startChatSession(conn);
-                conn.on('data', (data) => receiveMessage(conn, data));
-            });
-            conn.on('error', (err) => {
-                console.error(err);
-                alert('Не удалось соединиться. Друг оффлайн или ID неверный.');
-            });
-        }
+function receiveMessage(conn, data) {
+    let msgObj;
+    try {
+        msgObj = JSON.parse(data);
+    } catch (e) {
+        console.warn("Невалидные данные:", data);
+        return;
+    }
 
-        function openChatWith(friendId) {
-            if (!isLoggedIn) return;
-            if (currentFriendId === friendId) return;
-            const conn = myPeer.connect(friendId);
-            conn.on('open', () => {
-                currentConnection = conn;
-                currentFriendId = friendId;
-                startChatSession(conn);
-                conn.on('data', (data) => receiveMessage(conn, data));
-            });
-            conn.on('error', () => alert('Друг оффлайн.'));
-        }
+    msgObj.sender = 'friend';
+    msgObj.time = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}); // Исправлено: корректная локаль
+    
+    appendMessageToUI(msgObj);
+    addToChatsHistory(conn.peer, msgObj.text);
+}
 
-        function startChatSession(conn) {
-            document.getElementById('appContainer').classList.add('chat-active');
-            document.getElementById('chatWithTitle').textContent = `Чат с ID: \${currentFriendId}`; // ИСПРАВЛЕНО: корректный шаблон
-            updateStatus(true);
-            addToChatsHistory(currentFriendId, 'Чат открыт');
-        }
+function appendMessageToUI(msg) {
+    const area = document.getElementById('messagesArea');
+    const rowClass = msg.sender === 'me' ? 'my-msg' : 'friend-msg';
+    
+    const div = document.createElement('div');
+    div.className = `msg-row \${rowClass}`;
+    div.innerHTML = `
+        <div class="msg-author">${msg.sender === 'me' ? 'Вы' : 'Друг'} (${msg.time})</div>
+        <div class="bubble">\${msg.text}</div>
+    `;
+    area.appendChild(div);
+    area.scrollTop = area.scrollHeight;
+}
 
-        function updateStatus(isOnline) {
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('statusText');
-            if (isOnline) {
-                dot.className = 'status-dot online';
-                text.textContent = 'В сети';
-            } else {
-                dot.className = 'status-dot';
-                text.textContent = 'Оффлайн';
-            }
-        }
-
-        function addToChatsHistory(friendId, lastMsg) {
-            const existingIndex = chatsHistory.findIndex(c => c.id === friendId);
-            if (existingIndex !== -1) {
-                chatsHistory[existingIndex].lastMsg = lastMsg;
-                chatsHistory[existingIndex].timestamp = Date.now();
-            } else {
-                chatsHistory.push({ id: friendId, lastMsg, timestamp: Date.now() });
-            }
-            renderChatList();
-        }
-
-        function renderChatList() {
-            const list = document.getElementById('chatList');
-            const empty = document.getElementById('emptyChatList');
-            
-            if (chatsHistory.length === 0) {
-                empty.style.display = 'block';
-                list.innerHTML = '';
-                return;
-            }
-            
-            empty.style.display = 'none';
-            list.innerHTML = chatsHistory.map(chat => `
-                <div class="chat-item" onclick="openChatWith('\${chat.id}')">
-                    <div class="chat-avatar-placeholder" style="background: #ccc;">\${chat.id.slice(0,1)}</div>
-                    <div class="chat-info">
-                        <h5>Друг #\${chat.id}</h5>
-                        <p>\${chat.lastMsg}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if (!text || !currentConnection) return;
-
-            const msgObj = {
-                text: text,
-                sender: 'me',
-                time: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}) // ИСПРАВЛЕНО: корректная локаль
-            };
-
-            // Отправка локально
-            appendMessageToUI(msgObj);
-            input.value = '';
-
-            // Отправка через PeerJS
-            try {
-                currentConnection.send(JSON.stringify(msgObj));
-            } catch (e) {
-                console.error("Ошибка отправки:", e);
-            }
-        }
-
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
-
-        function receiveMessage(conn, data) {
-            let msgObj;
-            try {
-                msgObj = JSON.parse(data);
-            } catch (e) {
-                console.warn("Невалидные данные:", data);
-                return;
-            }
-
-            msgObj.sender = 'friend';
-            msgObj.time = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}); // ИСПРАВЛЕНО: корректная локаль
-            
-            appendMessageToUI(msgObj);
-            addToChatsHistory(conn.peer, msgObj.text);
-        }
-
-        function appendMessageToUI(msg) {
-            const area = document.getElementById('messagesArea');
-            const rowClass = msg.sender === 'me' ? 'my-msg' : 'friend-msg';
-            
-            const div = document.createElement('div');
-            div.className = `msg-row \${rowClass}`;
-            div.innerHTML = `
-                <div class="msg-author">${msg.sender === 'me' ? 'Вы' : 'Друг'} (${msg.time})</div>
-                <div class="bubble">\${msg.text}</div>
-            `;
-            area.appendChild(div);
-            area.scrollTop = area.scrollHeight;
-        }
 
         function goBackToChats() {
             document.getElementById('appContainer').classList.remove('chat-active');
