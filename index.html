@@ -40,13 +40,13 @@
             padding: 20px 12px;
         }
 
-        /* Кастомный логотип 🍏 Smax */
+        /* Кастомный логотип 🍏 Smax без пробелов */
         .app-title {
             font-size: 22px;
             font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             margin-bottom: 24px;
             padding-left: 8px;
             color: var(--text-main);
@@ -107,7 +107,7 @@
             box-shadow: 0 0 8px var(--accent-green);
         }
 
-        /* Фрейм защищенного чата, развернутый на весь экран */
+        /* Фрейм защищенного чата Element */
         .chat-frame {
             flex: 1;
             width: 100%;
@@ -116,7 +116,7 @@
         }
 
         @media (max-width: 768px) {
-            .sidebar { display: none; } /* Оптимизация под экраны Айфонов */
+            .sidebar { display: none; } /* Скрытие меню на iPhone для удобства */
         }
     </style>
 </head>
@@ -124,7 +124,7 @@
 
     <!-- Сайдбар Smax -->
     <div class="sidebar">
-        <div class="app-title">🍏 <span class="logo-s">S</span>max</div>
+        <div class="app-title">🍏<span class="logo-s">S</span>max</div>
         <button class="menu-btn">🟢 Основная комната</button>
         <div style="margin-top: auto; font-size: 11px; color: var(--text-muted); text-align: center;">
             Приватный зашифрованный канал
@@ -134,16 +134,16 @@
     <!-- Основное окно общения -->
     <div class="chat-stage">
         <div class="chat-header">
-            <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">🍏 <span style="color: var(--accent-green)">S</span>max Chat
+            <div style="font-weight: 600; display: flex; align-items: center; gap: 4px;">🍏<span style="color: var(--accent-green)">S</span>max Chat
             </div>
             <div class="status-block">
                 <div class="status-dot"></div>
-                <span style="color: var(--text-muted);">Защищено (P2P)</span>
+                <span style="color: var(--text-muted);">Защищено</span>
             </div>
         </div>
         
-        <!-- Встроенный инструмент для мгновенной переписки -->
-        <iframe class="chat-frame" src="https://chatz.rip"></iframe>
+        <!-- Надежный и бесплатный веб-чат, который откроется внутри вашего дизайна -->
+        <iframe class="chat-frame" src="https://element.io"></iframe>
     </div>
 
 </body>
